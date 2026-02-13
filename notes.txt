@@ -1,0 +1,39 @@
+using json = basic_json
+
+environment.hpp
+  - has json& data as various fn params
+  - load_json calls json::parse
+
+function_storage.hpp
+   - Arguments vector<const json*>
+   - CallbackFunction returns json
+
+node.hpp
+  LiteralNode
+    - has json value
+    - value(json::parse(data_text))
+       for a LiteralNode
+
+  DataNode
+    - const json::json_pointer ptr;
+    - ctor intializes  ptr(json::json_pointer(convert_dot_to_ptr(ptr_name)))
+
+renderer.hpp
+    - json object in various places
+       - json* data:
+         - data->get<bool>()
+         - data->is_number()
+         - data->is_null()
+         - data->empty()
+         - is_number_unsigned()
+         - is_number_integer()
+         - dump()   # simple output, used in print_data() and visit() for Join function (if not string)
+         - is_string()
+         - get_ref<T>
+
+         - json::string_t
+         - json::number_unsigned_t
+         - json::number_integer_t
+         - json::number_float_t
+
+         - json::parse(data_text)
