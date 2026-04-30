@@ -1048,7 +1048,7 @@ class Lexer {
     LineStart,
     LineBody,
     StatementStart,
-    StatementStartNoLstrip,
+    StatementStartNoLstrip, // NOLstrip for Expression and Comment also?
     StatementStartForceLstrip,
     StatementBody,
     CommentStart,
@@ -1095,7 +1095,8 @@ class Lexer {
       pos = tok_start + close.size();
       const Token tok = make_token(closeKind);
       if (trim) {
-        skip_whitespaces_and_first_newline();
+        // the spec seems to indicate only newline should be removed, and that could be useful.
+        skip_whitespaces_and_first_newline(); 
       }
       return tok;
     }
@@ -1424,6 +1425,7 @@ public:
       return make_token(Token::Kind::CommentOpen);
     }
     case State::ExpressionBody:
+      // I don't think spec says to treat Expressions different from statments wrt trim_blocks
       return scan_body(config.expression_close, Token::Kind::ExpressionClose, config.expression_close_force_rstrip);
     case State::LineBody:
       return scan_body("\n", Token::Kind::LineStatementClose);
@@ -1445,6 +1447,7 @@ public:
       pos += end + config.comment_close.size();
       Token tok = make_token(Token::Kind::CommentClose);
 
+      // possibly incorrect by the jinja spec
       if (must_rstrip || config.trim_blocks) {
         skip_whitespaces_and_first_newline();
       }
