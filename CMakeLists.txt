@@ -17,6 +17,18 @@ option(INJA_USE_EMBEDDED_JSON "Use the shipped json header if not available on t
 
 include(GNUInstallDirs)
 
+if(${CMAKE_GENERATOR} STREQUAL "Xcode")
+  message("generating for XCode")
+elseif(CMAKE_GENERATOR MATCHES "Visual Studio")
+  message("generating for Visual Studio")
+else()
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # for LSP (eglot)
+  message("generating for generic (make/ninja)")
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
+
 set(INJA_INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_INCLUDEDIR})
 set(INJA_PACKAGE_USE_EMBEDDED_JSON OFF)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
@@ -71,7 +83,7 @@ else()
   endif()
 endif()
 
-
+message("inja json library: ${INJA_SELECTED_JSON_LIBRARY}")
 target_link_libraries(inja INTERFACE ${INJA_SELECTED_JSON_LIBRARY})
 
 
