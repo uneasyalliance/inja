@@ -181,7 +181,10 @@ public:
   };
 
   struct FunctionData {
-    explicit FunctionData(const Operation& op, const CallbackFunction& cb = CallbackFunction {}): operation(op), callback(cb) {}
+    explicit FunctionData(const Operation& op,
+                          const CallbackFunction& cb = CallbackFunction {}):
+        operation(op), callback(cb)
+      {}
     const Operation operation;
     const CallbackFunction callback;
   };
@@ -447,7 +450,10 @@ class TextNode : public AstNode {
 public:
   const size_t length;
 
-  explicit TextNode(size_t pos, size_t length): AstNode(pos), length(length) {}
+  explicit TextNode(size_t pos, size_t length):
+      AstNode(pos),
+      length(length)
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -467,7 +473,10 @@ class LiteralNode : public ExpressionNode {
 public:
   const json value;
 
-  explicit LiteralNode(std::string_view data_text, size_t pos): ExpressionNode(pos), value(json::parse(data_text)) {}
+  explicit LiteralNode(std::string_view data_text, size_t pos):
+      ExpressionNode(pos),
+      value(json::parse(data_text))
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -490,7 +499,11 @@ public:
     return result;
   }
 
-  explicit DataNode(std::string_view ptr_name, size_t pos): ExpressionNode(pos), name(ptr_name), ptr(json::json_pointer(convert_dot_to_ptr(ptr_name))) {}
+  explicit DataNode(std::string_view ptr_name, size_t pos):
+      ExpressionNode(pos),
+      name(ptr_name),
+      ptr(json::json_pointer(convert_dot_to_ptr(ptr_name)))
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -516,9 +529,18 @@ public:
   std::vector<std::shared_ptr<ExpressionNode>> arguments;
   CallbackFunction callback;
 
-  explicit FunctionNode(std::string_view name, size_t pos)
-      : ExpressionNode(pos), precedence(8), associativity(Associativity::Left), operation(Op::Callback), name(name), number_args(0) {}
-  explicit FunctionNode(Op operation, size_t pos): ExpressionNode(pos), operation(operation), number_args(1) {
+  explicit FunctionNode(std::string_view name, size_t pos):
+      ExpressionNode(pos),
+      precedence(8),
+      associativity(Associativity::Left),
+      operation(Op::Callback),
+      name(name),
+      number_args(0)
+    {}
+  explicit FunctionNode(Op operation, size_t pos):
+      ExpressionNode(pos),
+      operation(operation),
+      number_args(1) {
     switch (operation) {
     case Op::Not: {
       number_args = 1;
@@ -642,7 +664,10 @@ public:
   BlockNode body;
   BlockNode* const parent;
 
-  explicit ForStatementNode(BlockNode* const parent, size_t pos): StatementNode(pos), parent(parent) {}
+  explicit ForStatementNode(BlockNode* const parent, size_t pos):
+      StatementNode(pos),
+      parent(parent)
+    {}
 
   void accept(NodeVisitor& v) const override = 0;
 };
@@ -651,7 +676,12 @@ class ForArrayStatementNode : public ForStatementNode {
 public:
   const std::string value;
 
-  explicit ForArrayStatementNode(const std::string& value, BlockNode* const parent, size_t pos): ForStatementNode(parent, pos), value(value) {}
+  explicit ForArrayStatementNode(const std::string& value,
+                                 BlockNode* const parent,
+                                 size_t pos):
+      ForStatementNode(parent, pos),
+      value(value)
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -663,8 +693,14 @@ public:
   const std::string key;
   const std::string value;
 
-  explicit ForObjectStatementNode(const std::string& key, const std::string& value, BlockNode* const parent, size_t pos)
-      : ForStatementNode(parent, pos), key(key), value(value) {}
+  explicit ForObjectStatementNode(const std::string& key,
+                                  const std::string& value,
+                                  BlockNode* const parent,
+                                  size_t pos):
+      ForStatementNode(parent, pos),
+      key(key),
+      value(value)
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -681,8 +717,19 @@ public:
   const bool is_nested;
   bool has_false_statement {false};
 
-  explicit IfStatementNode(BlockNode* const parent, size_t pos): StatementNode(pos), parent(parent), is_nested(false) {}
-  explicit IfStatementNode(bool is_nested, BlockNode* const parent, size_t pos): StatementNode(pos), parent(parent), is_nested(is_nested) {}
+  explicit IfStatementNode(BlockNode* const parent,
+                           size_t pos):
+      StatementNode(pos),
+      parent(parent),
+      is_nested(false)
+    {}
+  explicit IfStatementNode(bool is_nested,
+                           BlockNode* const parent,
+                           size_t pos):
+      StatementNode(pos),
+      parent(parent),
+      is_nested(is_nested)
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -717,7 +764,13 @@ public:
   BlockNode block;
   BlockNode* const parent;
 
-  explicit BlockStatementNode(BlockNode* const parent, const std::string& name, size_t pos): StatementNode(pos), name(name), parent(parent) {}
+  explicit BlockStatementNode(BlockNode* const parent,
+                              const std::string& name,
+                              size_t pos):
+      StatementNode(pos),
+      name(name),
+      parent(parent)
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -729,7 +782,10 @@ public:
   const std::string key;
   ExpressionListNode expression;
 
-  explicit SetStatementNode(const std::string& key, size_t pos): StatementNode(pos), key(key) {}
+  explicit SetStatementNode(const std::string& key, size_t pos):
+      StatementNode(pos),
+      key(key)
+    {}
 
   void accept(NodeVisitor& v) const override {
     v.visit(*this);
@@ -1069,7 +1125,10 @@ class Lexer {
   size_t tok_start;
   size_t pos;
 
-  Token scan_body(std::string_view close, Token::Kind closeKind, std::string_view close_trim = std::string_view(), bool trim = false) {
+  Token scan_body(std::string_view close,
+                  Token::Kind closeKind,
+                  std::string_view close_trim = std::string_view(),
+                  bool trim = false) {
   again:
     // skip whitespace (except for \n as it might be a close)
     if (tok_start >= m_in.size()) {
@@ -1300,7 +1359,13 @@ class Lexer {
   }
 
 public:
-  explicit Lexer(const LexerConfig& config): config(config), state(State::Text), minus_state(MinusState::Number), tok_start(0), pos(0) {}
+  explicit Lexer(const LexerConfig& config):
+      config(config),
+      state(State::Text),
+      minus_state(MinusState::Number),
+      tok_start(0),
+      pos(0)
+    {}
 
   SourceLocation current_position() const {
     return get_source_location(m_in, tok_start);
@@ -1426,11 +1491,16 @@ public:
     }
     case State::ExpressionBody:
       // I don't think spec says to treat Expressions different from statments wrt trim_blocks
-      return scan_body(config.expression_close, Token::Kind::ExpressionClose, config.expression_close_force_rstrip);
+      return scan_body(config.expression_close,
+                       Token::Kind::ExpressionClose,
+                       config.expression_close_force_rstrip);
     case State::LineBody:
       return scan_body("\n", Token::Kind::LineStatementClose);
     case State::StatementBody:
-      return scan_body(config.statement_close, Token::Kind::StatementClose, config.statement_close_force_rstrip, config.trim_blocks);
+      return scan_body(config.statement_close,
+                       Token::Kind::StatementClose,
+                       config.statement_close_force_rstrip,
+                       config.trim_blocks);
     case State::CommentBody: {
       // fast-scan to comment close
       const size_t end = m_in.substr(pos).find(config.comment_close);
@@ -1523,7 +1593,8 @@ class Parser {
 
   void add_literal(Arguments &arguments, const char* content_ptr) {
     const std::string_view data_text(literal_start.data(), tok.text.data() - literal_start.data() + tok.text.size());
-    arguments.emplace_back(std::make_shared<LiteralNode>(data_text, data_text.data() - content_ptr));
+    arguments.emplace_back(std::make_shared<LiteralNode>(data_text,
+                                                         data_text.data() - content_ptr));
   }
 
   void add_operator(Arguments &arguments, OperatorStack &operator_stack) {
@@ -1667,7 +1738,8 @@ class Parser {
 
           // Functions
         } else if (peek_tok.kind == Token::Kind::LeftParen) {
-          auto func = std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
+          auto func = std::make_shared<FunctionNode>(tok.text,
+                                                     tok.text.data() - tmpl.content.c_str());
           get_next_token();
           do {
             get_next_token();
@@ -1694,7 +1766,8 @@ class Parser {
 
           // Variables
         } else {
-          arguments.emplace_back(std::make_shared<DataNode>(static_cast<std::string>(tok.text), tok.text.data() - tmpl.content.c_str()));
+          arguments.emplace_back(std::make_shared<DataNode>(static_cast<std::string>(tok.text),
+                                                            tok.text.data() - tmpl.content.c_str()));
         }
 
         // Operators
@@ -1772,7 +1845,8 @@ class Parser {
           throw_parser_error("unknown operator in parser.");
         }
         }
-        auto function_node = std::make_shared<FunctionNode>(operation, tok.text.data() - tmpl.content.c_str());
+        auto function_node = std::make_shared<FunctionNode>(operation,
+                                                            tok.text.data() - tmpl.content.c_str());
 
         while (!operator_stack.empty() &&
                ((operator_stack.top()->precedence > function_node->precedence) ||
@@ -1811,7 +1885,8 @@ class Parser {
         if (tok.kind != Token::Kind::Id) {
           throw_parser_error("expected function name, got '" + tok.describe() + "'");
         }
-        auto func = std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
+        auto func = std::make_shared<FunctionNode>(tok.text,
+                                                   tok.text.data() - tmpl.content.c_str());
         // add first parameter as last value from arguments
         func->number_args += 1;
         func->arguments.emplace_back(arguments.back());
@@ -1874,7 +1949,8 @@ class Parser {
     if (tok.text == static_cast<decltype(tok.text)>("if")) {
       get_next_token();
 
-      auto if_statement_node = std::make_shared<IfStatementNode>(current_block, tok.text.data() - tmpl.content.c_str());
+      auto if_statement_node = std::make_shared<IfStatementNode>(current_block,
+                                                                 tok.text.data() - tmpl.content.c_str());
       current_block->nodes.emplace_back(if_statement_node);
       if_statement_stack.emplace(if_statement_node.get());
       current_block = &if_statement_node->true_statement;
@@ -1897,7 +1973,9 @@ class Parser {
       if (tok.kind == Token::Kind::Id && tok.text == static_cast<decltype(tok.text)>("if")) {
         get_next_token();
 
-        auto if_statement_node = std::make_shared<IfStatementNode>(true, current_block, tok.text.data() - tmpl.content.c_str());
+        auto if_statement_node = std::make_shared<IfStatementNode>(true,
+                                                                   current_block,
+                                                                   tok.text.data() - tmpl.content.c_str());
         current_block->nodes.emplace_back(if_statement_node);
         if_statement_stack.emplace(if_statement_node.get());
         current_block = &if_statement_node->true_statement;
@@ -1931,7 +2009,9 @@ class Parser {
 
       const std::string block_name = static_cast<std::string>(tok.text);
 
-      auto block_statement_node = std::make_shared<BlockStatementNode>(current_block, block_name, tok.text.data() - tmpl.content.c_str());
+      auto block_statement_node = std::make_shared<BlockStatementNode>(current_block,
+                                                                       block_name,
+                                                                       tok.text.data() - tmpl.content.c_str());
       current_block->nodes.emplace_back(block_statement_node);
       block_statement_stack.emplace(block_statement_node.get());
       current_block = &block_statement_node->block;
@@ -1974,13 +2054,17 @@ class Parser {
         value_token = tok;
         get_next_token();
 
-        for_statement_node = std::make_shared<ForObjectStatementNode>(static_cast<std::string>(key_token.text), static_cast<std::string>(value_token.text),
-                                                                      current_block, tok.text.data() - tmpl.content.c_str());
+        for_statement_node = std::make_shared<ForObjectStatementNode>(static_cast<std::string>(key_token.text),
+                                                                      static_cast<std::string>(value_token.text),
+                                                                      current_block,
+                                                                      tok.text.data() - tmpl.content.c_str());
 
         // Array type
       } else {
         for_statement_node =
-            std::make_shared<ForArrayStatementNode>(static_cast<std::string>(value_token.text), current_block, tok.text.data() - tmpl.content.c_str());
+            std::make_shared<ForArrayStatementNode>(static_cast<std::string>(value_token.text),
+                                                    current_block,
+                                                    tok.text.data() - tmpl.content.c_str());
       }
 
       current_block->nodes.emplace_back(for_statement_node);
@@ -2012,7 +2096,8 @@ class Parser {
       std::string template_name = parse_filename();
       add_to_template_storage(path, template_name);
 
-      current_block->nodes.emplace_back(std::make_shared<IncludeStatementNode>(template_name, tok.text.data() - tmpl.content.c_str()));
+      current_block->nodes.emplace_back(std::make_shared<IncludeStatementNode>(template_name,
+                                                                               tok.text.data() - tmpl.content.c_str()));
 
       get_next_token();
     } else if (tok.text == static_cast<decltype(tok.text)>("extends")) {
@@ -2021,7 +2106,8 @@ class Parser {
       std::string template_name = parse_filename();
       add_to_template_storage(path, template_name);
 
-      current_block->nodes.emplace_back(std::make_shared<ExtendsStatementNode>(template_name, tok.text.data() - tmpl.content.c_str()));
+      current_block->nodes.emplace_back(std::make_shared<ExtendsStatementNode>(template_name,
+                                                                               tok.text.data() - tmpl.content.c_str()));
 
       get_next_token();
     } else if (tok.text == static_cast<decltype(tok.text)>("set")) {
@@ -2034,7 +2120,8 @@ class Parser {
       const std::string key = static_cast<std::string>(tok.text);
       get_next_token();
 
-      auto set_statement_node = std::make_shared<SetStatementNode>(key, tok.text.data() - tmpl.content.c_str());
+      auto set_statement_node = std::make_shared<SetStatementNode>(key,
+                                                                   tok.text.data() - tmpl.content.c_str());
       current_block->nodes.emplace_back(set_statement_node);
       current_expression_list = &set_statement_node->expression;
 
@@ -2070,7 +2157,8 @@ class Parser {
         current_block = nullptr;
         return;
       case Token::Kind::Text: {
-        current_block->nodes.emplace_back(std::make_shared<TextNode>(tok.text.data() - tmpl.content.c_str(), tok.text.size()));
+        current_block->nodes.emplace_back(std::make_shared<TextNode>(tok.text.data() - tmpl.content.c_str(),
+                                                                     tok.text.size()));
       } break;
       case Token::Kind::StatementOpen: {
         get_next_token();
@@ -2294,7 +2382,8 @@ class Renderer : public NodeVisitor {
     data_eval_stack.push(result_ptr.get());
   }
 
-  template <size_t N, size_t N_start = 0, bool throw_not_found = true> std::array<const json*, N> get_arguments(const FunctionNode& node) {
+  template <size_t N, size_t N_start = 0, bool throw_not_found = true>
+  std::array<const json*, N> get_arguments(const FunctionNode& node) {
     if (node.arguments.size() < N_start + N) {
       throw_renderer_error("function needs " + std::to_string(N_start + N) + " variables, but has only found " + std::to_string(node.arguments.size()), node);
     }
@@ -2324,7 +2413,8 @@ class Renderer : public NodeVisitor {
     return result;
   }
 
-  template <bool throw_not_found = true> Arguments get_argument_vector(const FunctionNode& node) {
+  template <bool throw_not_found = true>
+  Arguments get_argument_vector(const FunctionNode& node) {
     const size_t N = node.arguments.size();
     for (const auto& a : node.arguments) {
       a->accept(*this);
@@ -2809,10 +2899,18 @@ class Renderer : public NodeVisitor {
   }
 
 public:
-  explicit Renderer(const RenderConfig& config, const TemplateStorage& template_storage, const FunctionStorage& function_storage)
-      : config(config), template_storage(template_storage), function_storage(function_storage) {}
+  explicit Renderer(const RenderConfig& config,
+                    const TemplateStorage& template_storage,
+                    const FunctionStorage& function_storage):
+      config(config),
+      template_storage(template_storage),
+      function_storage(function_storage)
+    {}
 
-  void render_to(std::ostream& os, const Template& tmpl, const json& data, json* loop_data = nullptr) {
+  void render_to(std::ostream& os,
+                 const Template& tmpl,
+                 const json& data,
+                 json* loop_data = nullptr) {
     output_stream = &os;
     current_template = &tmpl;
     data_input = &data;
@@ -2855,9 +2953,18 @@ protected:
   std::filesystem::path output_path;
 
 public:
-  Environment(): Environment("") {}
-  explicit Environment(const std::filesystem::path& global_path): input_path(global_path), output_path(global_path) {}
-  Environment(const std::filesystem::path& input_path, const std::filesystem::path& output_path): input_path(input_path), output_path(output_path) {}
+  Environment():
+      Environment("")
+    {}
+  explicit Environment(const std::filesystem::path& global_path):
+      input_path(global_path),
+      output_path(global_path)
+    {}
+  Environment(const std::filesystem::path& input_path,
+              const std::filesystem::path& output_path):
+      input_path(input_path),
+      output_path(output_path)
+    {}
 
   /// Sets the opener and closer for template statements
   void set_statement(const std::string& open, const std::string& close) {
@@ -2953,34 +3060,46 @@ public:
     return render_file(filename, data);
   }
 
-  void write(const std::filesystem::path& filename, const json& data, const std::string& filename_out) {
+  void write(const std::filesystem::path& filename,
+             const json& data,
+             const std::string& filename_out) {
     std::ofstream file(output_path / filename_out);
     file << render_file(filename, data);
     file.close();
   }
 
-  void write(const Template& temp, const json& data, const std::string& filename_out) {
+  void write(const Template& temp,
+             const json& data,
+             const std::string& filename_out) {
     std::ofstream file(output_path / filename_out);
     file << render(temp, data);
     file.close();
   }
 
-  void write_with_json_file(const std::filesystem::path& filename, const std::string& filename_data, const std::string& filename_out) {
+  void write_with_json_file(const std::filesystem::path& filename,
+                            const std::string& filename_data,
+                            const std::string& filename_out) {
     const json data = load_json(filename_data);
     write(filename, data, filename_out);
   }
 
-  void write_with_json_file(const Template& temp, const std::string& filename_data, const std::string& filename_out) {
+  void write_with_json_file(const Template& temp,
+                            const std::string& filename_data,
+                            const std::string& filename_out) {
     const json data = load_json(filename_data);
     write(temp, data, filename_out);
   }
 
-  std::ostream& render_to(std::ostream& os, const Template& tmpl, const json& data) {
+  std::ostream& render_to(std::ostream& os,
+                          const Template& tmpl,
+                          const json& data) {
     Renderer(render_config, template_storage, function_storage).render_to(os, tmpl, data);
     return os;
   }
 
-  std::ostream& render_to(std::ostream& os, const std::string_view input, const json& data) {
+  std::ostream& render_to(std::ostream& os,
+                          const std::string_view input,
+                          const json& data) {
     return render_to(os, parse(input), data);
   }
 

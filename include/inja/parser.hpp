@@ -70,7 +70,8 @@ class Parser {
 
   void add_literal(Arguments &arguments, const char* content_ptr) {
     const std::string_view data_text(literal_start.data(), tok.text.data() - literal_start.data() + tok.text.size());
-    arguments.emplace_back(std::make_shared<LiteralNode>(data_text, data_text.data() - content_ptr));
+    arguments.emplace_back(std::make_shared<LiteralNode>(data_text,
+                                                         data_text.data() - content_ptr));
   }
 
   void add_operator(Arguments &arguments, OperatorStack &operator_stack) {
@@ -214,7 +215,8 @@ class Parser {
 
           // Functions
         } else if (peek_tok.kind == Token::Kind::LeftParen) {
-          auto func = std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
+          auto func = std::make_shared<FunctionNode>(tok.text,
+                                                     tok.text.data() - tmpl.content.c_str());
           get_next_token();
           do {
             get_next_token();
@@ -241,7 +243,8 @@ class Parser {
 
           // Variables
         } else {
-          arguments.emplace_back(std::make_shared<DataNode>(static_cast<std::string>(tok.text), tok.text.data() - tmpl.content.c_str()));
+          arguments.emplace_back(std::make_shared<DataNode>(static_cast<std::string>(tok.text),
+                                                            tok.text.data() - tmpl.content.c_str()));
         }
 
         // Operators
@@ -319,7 +322,8 @@ class Parser {
           throw_parser_error("unknown operator in parser.");
         }
         }
-        auto function_node = std::make_shared<FunctionNode>(operation, tok.text.data() - tmpl.content.c_str());
+        auto function_node = std::make_shared<FunctionNode>(operation,
+                                                            tok.text.data() - tmpl.content.c_str());
 
         while (!operator_stack.empty() &&
                ((operator_stack.top()->precedence > function_node->precedence) ||
@@ -358,7 +362,8 @@ class Parser {
         if (tok.kind != Token::Kind::Id) {
           throw_parser_error("expected function name, got '" + tok.describe() + "'");
         }
-        auto func = std::make_shared<FunctionNode>(tok.text, tok.text.data() - tmpl.content.c_str());
+        auto func = std::make_shared<FunctionNode>(tok.text,
+                                                   tok.text.data() - tmpl.content.c_str());
         // add first parameter as last value from arguments
         func->number_args += 1;
         func->arguments.emplace_back(arguments.back());
@@ -421,7 +426,8 @@ class Parser {
     if (tok.text == static_cast<decltype(tok.text)>("if")) {
       get_next_token();
 
-      auto if_statement_node = std::make_shared<IfStatementNode>(current_block, tok.text.data() - tmpl.content.c_str());
+      auto if_statement_node = std::make_shared<IfStatementNode>(current_block,
+                                                                 tok.text.data() - tmpl.content.c_str());
       current_block->nodes.emplace_back(if_statement_node);
       if_statement_stack.emplace(if_statement_node.get());
       current_block = &if_statement_node->true_statement;
@@ -444,7 +450,9 @@ class Parser {
       if (tok.kind == Token::Kind::Id && tok.text == static_cast<decltype(tok.text)>("if")) {
         get_next_token();
 
-        auto if_statement_node = std::make_shared<IfStatementNode>(true, current_block, tok.text.data() - tmpl.content.c_str());
+        auto if_statement_node = std::make_shared<IfStatementNode>(true,
+                                                                   current_block,
+                                                                   tok.text.data() - tmpl.content.c_str());
         current_block->nodes.emplace_back(if_statement_node);
         if_statement_stack.emplace(if_statement_node.get());
         current_block = &if_statement_node->true_statement;
@@ -478,7 +486,9 @@ class Parser {
 
       const std::string block_name = static_cast<std::string>(tok.text);
 
-      auto block_statement_node = std::make_shared<BlockStatementNode>(current_block, block_name, tok.text.data() - tmpl.content.c_str());
+      auto block_statement_node = std::make_shared<BlockStatementNode>(current_block,
+                                                                       block_name,
+                                                                       tok.text.data() - tmpl.content.c_str());
       current_block->nodes.emplace_back(block_statement_node);
       block_statement_stack.emplace(block_statement_node.get());
       current_block = &block_statement_node->block;
@@ -521,13 +531,17 @@ class Parser {
         value_token = tok;
         get_next_token();
 
-        for_statement_node = std::make_shared<ForObjectStatementNode>(static_cast<std::string>(key_token.text), static_cast<std::string>(value_token.text),
-                                                                      current_block, tok.text.data() - tmpl.content.c_str());
+        for_statement_node = std::make_shared<ForObjectStatementNode>(static_cast<std::string>(key_token.text),
+                                                                      static_cast<std::string>(value_token.text),
+                                                                      current_block,
+                                                                      tok.text.data() - tmpl.content.c_str());
 
         // Array type
       } else {
         for_statement_node =
-            std::make_shared<ForArrayStatementNode>(static_cast<std::string>(value_token.text), current_block, tok.text.data() - tmpl.content.c_str());
+            std::make_shared<ForArrayStatementNode>(static_cast<std::string>(value_token.text),
+                                                    current_block,
+                                                    tok.text.data() - tmpl.content.c_str());
       }
 
       current_block->nodes.emplace_back(for_statement_node);
@@ -559,7 +573,8 @@ class Parser {
       std::string template_name = parse_filename();
       add_to_template_storage(path, template_name);
 
-      current_block->nodes.emplace_back(std::make_shared<IncludeStatementNode>(template_name, tok.text.data() - tmpl.content.c_str()));
+      current_block->nodes.emplace_back(std::make_shared<IncludeStatementNode>(template_name,
+                                                                               tok.text.data() - tmpl.content.c_str()));
 
       get_next_token();
     } else if (tok.text == static_cast<decltype(tok.text)>("extends")) {
@@ -568,7 +583,8 @@ class Parser {
       std::string template_name = parse_filename();
       add_to_template_storage(path, template_name);
 
-      current_block->nodes.emplace_back(std::make_shared<ExtendsStatementNode>(template_name, tok.text.data() - tmpl.content.c_str()));
+      current_block->nodes.emplace_back(std::make_shared<ExtendsStatementNode>(template_name,
+                                                                               tok.text.data() - tmpl.content.c_str()));
 
       get_next_token();
     } else if (tok.text == static_cast<decltype(tok.text)>("set")) {
@@ -581,7 +597,8 @@ class Parser {
       const std::string key = static_cast<std::string>(tok.text);
       get_next_token();
 
-      auto set_statement_node = std::make_shared<SetStatementNode>(key, tok.text.data() - tmpl.content.c_str());
+      auto set_statement_node = std::make_shared<SetStatementNode>(key,
+                                                                   tok.text.data() - tmpl.content.c_str());
       current_block->nodes.emplace_back(set_statement_node);
       current_expression_list = &set_statement_node->expression;
 
@@ -617,7 +634,8 @@ class Parser {
         current_block = nullptr;
         return;
       case Token::Kind::Text: {
-        current_block->nodes.emplace_back(std::make_shared<TextNode>(tok.text.data() - tmpl.content.c_str(), tok.text.size()));
+        current_block->nodes.emplace_back(std::make_shared<TextNode>(tok.text.data() - tmpl.content.c_str(),
+                                                                     tok.text.size()));
       } break;
       case Token::Kind::StatementOpen: {
         get_next_token();

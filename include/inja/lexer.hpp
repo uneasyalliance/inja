@@ -45,7 +45,10 @@ class Lexer {
   size_t tok_start;
   size_t pos;
 
-  Token scan_body(std::string_view close, Token::Kind closeKind, std::string_view close_trim = std::string_view(), bool trim = false) {
+  Token scan_body(std::string_view close,
+                  Token::Kind closeKind,
+                  std::string_view close_trim = std::string_view(),
+                  bool trim = false) {
   again:
     // skip whitespace (except for \n as it might be a close)
     if (tok_start >= m_in.size()) {
@@ -276,7 +279,13 @@ class Lexer {
   }
 
 public:
-  explicit Lexer(const LexerConfig& config): config(config), state(State::Text), minus_state(MinusState::Number), tok_start(0), pos(0) {}
+  explicit Lexer(const LexerConfig& config):
+      config(config),
+      state(State::Text),
+      minus_state(MinusState::Number),
+      tok_start(0),
+      pos(0)
+    {}
 
   SourceLocation current_position() const {
     return get_source_location(m_in, tok_start);
@@ -402,11 +411,16 @@ public:
     }
     case State::ExpressionBody:
       // I don't think spec says to treat Expressions different from statments wrt trim_blocks
-      return scan_body(config.expression_close, Token::Kind::ExpressionClose, config.expression_close_force_rstrip);
+      return scan_body(config.expression_close,
+                       Token::Kind::ExpressionClose,
+                       config.expression_close_force_rstrip);
     case State::LineBody:
       return scan_body("\n", Token::Kind::LineStatementClose);
     case State::StatementBody:
-      return scan_body(config.statement_close, Token::Kind::StatementClose, config.statement_close_force_rstrip, config.trim_blocks);
+      return scan_body(config.statement_close,
+                       Token::Kind::StatementClose,
+                       config.statement_close_force_rstrip,
+                       config.trim_blocks);
     case State::CommentBody: {
       // fast-scan to comment close
       const size_t end = m_in.substr(pos).find(config.comment_close);

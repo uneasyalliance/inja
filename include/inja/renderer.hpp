@@ -139,7 +139,8 @@ class Renderer : public NodeVisitor {
     data_eval_stack.push(result_ptr.get());
   }
 
-  template <size_t N, size_t N_start = 0, bool throw_not_found = true> std::array<const json*, N> get_arguments(const FunctionNode& node) {
+  template <size_t N, size_t N_start = 0, bool throw_not_found = true>
+  std::array<const json*, N> get_arguments(const FunctionNode& node) {
     if (node.arguments.size() < N_start + N) {
       throw_renderer_error("function needs " + std::to_string(N_start + N) + " variables, but has only found " + std::to_string(node.arguments.size()), node);
     }
@@ -169,7 +170,8 @@ class Renderer : public NodeVisitor {
     return result;
   }
 
-  template <bool throw_not_found = true> Arguments get_argument_vector(const FunctionNode& node) {
+  template <bool throw_not_found = true>
+  Arguments get_argument_vector(const FunctionNode& node) {
     const size_t N = node.arguments.size();
     for (const auto& a : node.arguments) {
       a->accept(*this);
@@ -654,10 +656,18 @@ class Renderer : public NodeVisitor {
   }
 
 public:
-  explicit Renderer(const RenderConfig& config, const TemplateStorage& template_storage, const FunctionStorage& function_storage)
-      : config(config), template_storage(template_storage), function_storage(function_storage) {}
+  explicit Renderer(const RenderConfig& config,
+                    const TemplateStorage& template_storage,
+                    const FunctionStorage& function_storage):
+      config(config),
+      template_storage(template_storage),
+      function_storage(function_storage)
+    {}
 
-  void render_to(std::ostream& os, const Template& tmpl, const json& data, json* loop_data = nullptr) {
+  void render_to(std::ostream& os,
+                 const Template& tmpl,
+                 const json& data,
+                 json* loop_data = nullptr) {
     output_stream = &os;
     current_template = &tmpl;
     data_input = &data;

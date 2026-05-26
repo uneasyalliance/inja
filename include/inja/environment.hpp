@@ -34,9 +34,18 @@ protected:
   std::filesystem::path output_path;
 
 public:
-  Environment(): Environment("") {}
-  explicit Environment(const std::filesystem::path& global_path): input_path(global_path), output_path(global_path) {}
-  Environment(const std::filesystem::path& input_path, const std::filesystem::path& output_path): input_path(input_path), output_path(output_path) {}
+  Environment():
+      Environment("")
+    {}
+  explicit Environment(const std::filesystem::path& global_path):
+      input_path(global_path),
+      output_path(global_path)
+    {}
+  Environment(const std::filesystem::path& input_path,
+              const std::filesystem::path& output_path):
+      input_path(input_path),
+      output_path(output_path)
+    {}
 
   /// Sets the opener and closer for template statements
   void set_statement(const std::string& open, const std::string& close) {
@@ -132,34 +141,46 @@ public:
     return render_file(filename, data);
   }
 
-  void write(const std::filesystem::path& filename, const json& data, const std::string& filename_out) {
+  void write(const std::filesystem::path& filename,
+             const json& data,
+             const std::string& filename_out) {
     std::ofstream file(output_path / filename_out);
     file << render_file(filename, data);
     file.close();
   }
 
-  void write(const Template& temp, const json& data, const std::string& filename_out) {
+  void write(const Template& temp,
+             const json& data,
+             const std::string& filename_out) {
     std::ofstream file(output_path / filename_out);
     file << render(temp, data);
     file.close();
   }
 
-  void write_with_json_file(const std::filesystem::path& filename, const std::string& filename_data, const std::string& filename_out) {
+  void write_with_json_file(const std::filesystem::path& filename,
+                            const std::string& filename_data,
+                            const std::string& filename_out) {
     const json data = load_json(filename_data);
     write(filename, data, filename_out);
   }
 
-  void write_with_json_file(const Template& temp, const std::string& filename_data, const std::string& filename_out) {
+  void write_with_json_file(const Template& temp,
+                            const std::string& filename_data,
+                            const std::string& filename_out) {
     const json data = load_json(filename_data);
     write(temp, data, filename_out);
   }
 
-  std::ostream& render_to(std::ostream& os, const Template& tmpl, const json& data) {
+  std::ostream& render_to(std::ostream& os,
+                          const Template& tmpl,
+                          const json& data) {
     Renderer(render_config, template_storage, function_storage).render_to(os, tmpl, data);
     return os;
   }
 
-  std::ostream& render_to(std::ostream& os, const std::string_view input, const json& data) {
+  std::ostream& render_to(std::ostream& os,
+                          const std::string_view input,
+                          const json& data) {
     return render_to(os, parse(input), data);
   }
 
