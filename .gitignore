@@ -4,6 +4,7 @@
 
 build
 build-*
+xcode-build
 
 doc/html
 doc/latex
