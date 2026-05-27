@@ -29,6 +29,10 @@ inline std::pair<std::string_view, std::string_view> split(std::string_view view
 inline bool starts_with(std::string_view view, std::string_view prefix) {
   return (view.size() >= prefix.size() && view.compare(0, prefix.size(), prefix) == 0);
 }
+
+inline bool find_char_at(std::string_view view, size_t i, char c) {
+    return view.size() > i && view[i] == c;
+}
 } // namespace string_view
 
 inline SourceLocation get_source_location(std::string_view content, size_t pos) {

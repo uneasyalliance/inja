@@ -19,16 +19,12 @@ class Lexer {
   enum class State {
     Text,
     ExpressionStart,
-    ExpressionStartForceLstrip,
     ExpressionBody,
     LineStart,
     LineBody,
     StatementStart,
-    StatementStartNoLstrip, // NOLstrip for Expression and Comment also?
-    StatementStartForceLstrip,
     StatementBody,
     CommentStart,
-    CommentStartForceLstrip,
     CommentBody,
   };
 
@@ -39,8 +35,12 @@ class Lexer {
 
   const LexerConfig& config;
 
+  const char no_strip = '+';
+  const char force_strip = '-';
+
   State state;
   MinusState minus_state;
+  size_t extra_pos_incr;
   std::string_view m_in;
   size_t tok_start;
   size_t pos;
@@ -283,6 +283,7 @@ public:
       config(config),
       state(State::Text),
       minus_state(MinusState::Number),
+      extra_pos_incr(0),
       tok_start(0),
       pos(0)
     {}
@@ -297,6 +298,7 @@ public:
     pos = 0;
     state = State::Text;
     minus_state = MinusState::Number;
+    extra_pos_incr = 0;
 
     // Consume byte order mark (BOM) for UTF-8
     if (inja::string_view::starts_with(m_in, "\xEF\xBB\xBF")) {
@@ -327,31 +329,13 @@ public:
       // try to match one of the opening sequences, and get the close
       const std::string_view open_str = m_in.substr(pos);
       bool must_lstrip = false;
+      //bool no_lstrip = false;
       if (inja::string_view::starts_with(open_str, config.expression_open)) {
-        if (inja::string_view::starts_with(open_str, config.expression_open_force_lstrip)) {
-          state = State::ExpressionStartForceLstrip;
-          must_lstrip = true;
-        } else {
-          state = State::ExpressionStart;
-        }
+        state = State::ExpressionStart;
       } else if (inja::string_view::starts_with(open_str, config.statement_open)) {
-        if (inja::string_view::starts_with(open_str, config.statement_open_no_lstrip)) {
-          state = State::StatementStartNoLstrip;
-        } else if (inja::string_view::starts_with(open_str, config.statement_open_force_lstrip)) {
-          state = State::StatementStartForceLstrip;
-          must_lstrip = true;
-        } else {
-          state = State::StatementStart;
-          must_lstrip = config.lstrip_blocks;
-        }
+        state = State::StatementStart;
       } else if (inja::string_view::starts_with(open_str, config.comment_open)) {
-        if (inja::string_view::starts_with(open_str, config.comment_open_force_lstrip)) {
-          state = State::CommentStartForceLstrip;
-          must_lstrip = true;
-        } else {
-          state = State::CommentStart;
-          must_lstrip = config.lstrip_blocks;
-        }
+        state = State::CommentStart;
       } else if ((pos == 0 || m_in[pos - 1] == '\n') && inja::string_view::starts_with(open_str, config.line_statement)) {
         state = State::LineStart;
       } else {
@@ -359,9 +343,26 @@ public:
         goto again;
       }
 
+      if (state == State::ExpressionStart || state == State::StatementStart || state == State::CommentStart) {
+        if (inja::string_view::find_char_at(open_str, 2, force_strip)) {
+          must_lstrip = true;
+          extra_pos_incr = 1;
+        }
+        else if (inja::string_view::find_char_at(open_str, 2, no_strip)) {
+          //no_lstrip = true;
+          extra_pos_incr = 1;
+        }
+        else {
+          if (state != State::ExpressionStart) {
+             must_lstrip = config.lstrip_blocks;
+          }
+          extra_pos_incr = 0;
+        }
+      }
+
       std::string_view text = string_view::slice(m_in, tok_start, pos);
       if (must_lstrip) {
-        text = clear_final_line_if_whitespace(text);
+        text = clear_final_line_if_whitespace(text); // clear whitespace back to previous newline (don't clear if non-ws found)
       }
 
       if (text.empty()) {
@@ -371,12 +372,8 @@ public:
     }
     case State::ExpressionStart: {
       state = State::ExpressionBody;
-      pos += config.expression_open.size();
-      return make_token(Token::Kind::ExpressionOpen);
-    }
-    case State::ExpressionStartForceLstrip: {
-      state = State::ExpressionBody;
-      pos += config.expression_open_force_lstrip.size();
+      pos += config.expression_open.size() + extra_pos_incr;
+      extra_pos_incr = 0;
       return make_token(Token::Kind::ExpressionOpen);
     }
     case State::LineStart: {
@@ -386,40 +383,27 @@ public:
     }
     case State::StatementStart: {
       state = State::StatementBody;
-      pos += config.statement_open.size();
-      return make_token(Token::Kind::StatementOpen);
-    }
-    case State::StatementStartNoLstrip: {
-      state = State::StatementBody;
-      pos += config.statement_open_no_lstrip.size();
-      return make_token(Token::Kind::StatementOpen);
-    }
-    case State::StatementStartForceLstrip: {
-      state = State::StatementBody;
-      pos += config.statement_open_force_lstrip.size();
+      pos += config.statement_open.size() + extra_pos_incr;
+      extra_pos_incr = 0;
       return make_token(Token::Kind::StatementOpen);
     }
     case State::CommentStart: {
       state = State::CommentBody;
-      pos += config.comment_open.size();
-      return make_token(Token::Kind::CommentOpen);
-    }
-    case State::CommentStartForceLstrip: {
-      state = State::CommentBody;
-      pos += config.comment_open_force_lstrip.size();
+      pos += config.comment_open.size() + extra_pos_incr;
+      extra_pos_incr = 0;
       return make_token(Token::Kind::CommentOpen);
     }
     case State::ExpressionBody:
       // I don't think spec says to treat Expressions different from statments wrt trim_blocks
       return scan_body(config.expression_close,
                        Token::Kind::ExpressionClose,
-                       config.expression_close_force_rstrip);
+                       force_strip + config.expression_close);
     case State::LineBody:
       return scan_body("\n", Token::Kind::LineStatementClose);
     case State::StatementBody:
       return scan_body(config.statement_close,
                        Token::Kind::StatementClose,
-                       config.statement_close_force_rstrip,
+                       force_strip + config.statement_close,
                        config.trim_blocks);
     case State::CommentBody: {
       // fast-scan to comment close
@@ -430,7 +414,7 @@ public:
       }
 
       // Check for trim pattern
-      const bool must_rstrip = inja::string_view::starts_with(m_in.substr(pos + end - 1), config.comment_close_force_rstrip);
+      const bool must_rstrip = inja::string_view::find_char_at(m_in, pos + end - 1, force_strip);
 
       // return the entire comment in the close token
       state = State::Text;

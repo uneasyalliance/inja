@@ -14,20 +14,13 @@ namespace inja {
  */
 struct LexerConfig {
   std::string statement_open {"{%"};
-  std::string statement_open_no_lstrip {"{%+"};
-  std::string statement_open_force_lstrip {"{%-"};
   std::string statement_close {"%}"};
-  std::string statement_close_force_rstrip {"-%}"};
-  std::string line_statement {"##"};
+  std::string line_statement {"##"}; // TODO no line statement by default
   std::string expression_open {"{{"};
-  std::string expression_open_force_lstrip {"{{-"};
   std::string expression_close {"}}"};
-  std::string expression_close_force_rstrip {"-}}"};
   std::string comment_open {"{#"};
-  std::string comment_open_force_lstrip {"{#-"};
   std::string comment_close {"#}"};
-  std::string comment_close_force_rstrip {"-#}"};
-  std::string open_chars {"#{"};
+  std::string open_chars {"#{"}; // TODO no line statement by default
 
   bool trim_blocks {false};
   bool lstrip_blocks {false};
@@ -40,23 +33,11 @@ struct LexerConfig {
     if (open_chars.find(statement_open[0]) == std::string::npos) {
       open_chars += statement_open[0];
     }
-    if (open_chars.find(statement_open_no_lstrip[0]) == std::string::npos) {
-      open_chars += statement_open_no_lstrip[0];
-    }
-    if (open_chars.find(statement_open_force_lstrip[0]) == std::string::npos) {
-      open_chars += statement_open_force_lstrip[0];
-    }
     if (open_chars.find(expression_open[0]) == std::string::npos) {
       open_chars += expression_open[0];
     }
-    if (open_chars.find(expression_open_force_lstrip[0]) == std::string::npos) {
-      open_chars += expression_open_force_lstrip[0];
-    }
     if (open_chars.find(comment_open[0]) == std::string::npos) {
       open_chars += comment_open[0];
-    }
-    if (open_chars.find(comment_open_force_lstrip[0]) == std::string::npos) {
-      open_chars += comment_open_force_lstrip[0];
     }
   }
 };
