@@ -248,6 +248,7 @@ TEST_CASE("templates") {
     // Nothing will be stripped if there are other characters before the start of the block.
     CHECK(env.render(".  {%- if is_happy %}{{ name }}{% endif -%}\n", data) == ".  Peter");
     CHECK(env.render(".  {#- comment -#}\n.", data) == ".  .");
+    CHECK(env.render("  {#- comment -#}\n.", data) == ".");
 
     env.set_lstrip_blocks(true);
     CHECK(env.render("Hello {{ name }}!", data) == "Hello Peter!");
