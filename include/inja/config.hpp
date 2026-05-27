@@ -15,12 +15,12 @@ namespace inja {
 struct LexerConfig {
   std::string statement_open {"{%"};
   std::string statement_close {"%}"};
-  std::string line_statement {"##"}; // TODO no line statement by default
+  std::string line_statement {""};
   std::string expression_open {"{{"};
   std::string expression_close {"}}"};
   std::string comment_open {"{#"};
   std::string comment_close {"#}"};
-  std::string open_chars {"#{"}; // TODO no line statement by default
+  std::string open_chars {"{"};
 
   bool trim_blocks {false};
   bool lstrip_blocks {false};

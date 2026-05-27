@@ -32,6 +32,7 @@ TEST_CASE("loading") {
 
 TEST_CASE("complete-files") {
   inja::Environment env {test_file_directory};
+  env.set_line_statement("##");
 
   for (std::string test_name : {"simple-file", "nested", "nested-line", "html", "html-extend"}) {
     SUBCASE(test_name.c_str()) {
@@ -75,6 +76,7 @@ TEST_CASE("global-path") {
 
 TEST_CASE("include-files") {
   inja::Environment env {test_file_directory};
+  env.set_line_statement("##");
   inja::json data;
   data["name"] = "Jeff";
 

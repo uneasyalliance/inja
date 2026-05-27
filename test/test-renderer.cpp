@@ -6,6 +6,7 @@
 
 TEST_CASE("types") {
   inja::Environment env;
+  env.set_line_statement("##");
   inja::json data;
   data["name"] = "Peter";
   data["city"] = "Brunswick";

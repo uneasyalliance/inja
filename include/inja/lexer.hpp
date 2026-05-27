@@ -336,7 +336,8 @@ public:
         state = State::StatementStart;
       } else if (inja::string_view::starts_with(open_str, config.comment_open)) {
         state = State::CommentStart;
-      } else if ((pos == 0 || m_in[pos - 1] == '\n') && inja::string_view::starts_with(open_str, config.line_statement)) {
+      } else if ((pos == 0 || m_in[pos - 1] == '\n') && !config.line_statement.empty()
+                 && inja::string_view::starts_with(open_str, config.line_statement)) {
         state = State::LineStart;
       } else {
         pos += 1; // wasn't actually an opening sequence
