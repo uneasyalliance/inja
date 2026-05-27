@@ -14,10 +14,11 @@ struct Token {
     Text,
     ExpressionOpen,     // {{
     ExpressionClose,    // }}
-    LineStatementOpen,  // ##
-    LineStatementClose, // \n
+    LineStatementOpen,  // user defined
+    LineClose,          // \n
     StatementOpen,      // {%
     StatementClose,     // %}
+    LineCommentOpen,    // user defined
     CommentOpen,        // {#
     CommentClose,       // #}
     Id,                 // this, this.foo
@@ -59,7 +60,7 @@ struct Token {
     switch (kind) {
     case Kind::Text:
       return "<text>";
-    case Kind::LineStatementClose:
+    case Kind::LineClose:
       return "<eol>";
     case Kind::Eof:
       return "<eof>";

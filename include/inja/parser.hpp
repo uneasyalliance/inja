@@ -648,10 +648,10 @@ class Parser {
       } break;
       case Token::Kind::LineStatementOpen: {
         get_next_token();
-        if (!parse_statement(tmpl, Token::Kind::LineStatementClose, path)) {
+        if (!parse_statement(tmpl, Token::Kind::LineClose, path)) {
           throw_parser_error("expected statement, got '" + tok.describe() + "'");
         }
-        if (tok.kind != Token::Kind::LineStatementClose && tok.kind != Token::Kind::Eof) {
+        if (tok.kind != Token::Kind::LineClose && tok.kind != Token::Kind::Eof) {
           throw_parser_error("expected line statement close, got '" + tok.describe() + "'");
         }
       } break;
@@ -665,6 +665,12 @@ class Parser {
         if (!parse_expression(tmpl, Token::Kind::ExpressionClose)) {
           throw_parser_error("expected expression close, got '" + tok.describe() + "'");
         }
+      } break;
+      case Token::Kind::LineCommentOpen: {
+          get_next_token();
+          if (tok.kind != Token::Kind::LineClose) {
+              throw_parser_error("expected line comment close, got '" + tok.describe() + "'");
+          }
       } break;
       case Token::Kind::CommentOpen: {
         get_next_token();

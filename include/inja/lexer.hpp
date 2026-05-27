@@ -20,10 +20,12 @@ class Lexer {
     Text,
     ExpressionStart,
     ExpressionBody,
-    LineStart,
-    LineBody,
+    LineStatementStart,
+    LineStatementBody,
     StatementStart,
     StatementBody,
+    LineCommentStart,
+    LineCommentBody,
     CommentStart,
     CommentBody,
   };
@@ -336,9 +338,27 @@ public:
         state = State::StatementStart;
       } else if (inja::string_view::starts_with(open_str, config.comment_open)) {
         state = State::CommentStart;
-      } else if ((pos == 0 || m_in[pos - 1] == '\n') && !config.line_statement.empty()
-                 && inja::string_view::starts_with(open_str, config.line_statement)) {
-        state = State::LineStart;
+      } else if (pos == 0 || m_in[pos - 1] == '\n') {
+        bool maybe_line_statement = !config.line_statement.empty()
+          && inja::string_view::starts_with(open_str, config.line_statement);
+        bool maybe_line_comment = !config.line_comment.empty()
+          && inja::string_view::starts_with(open_str, config.line_comment);
+        if (maybe_line_statement && maybe_line_comment) { // disambiguate where e.g. one starts with "#" and another with "##"
+          if (config.line_statement.size() > config.line_comment.size()) {
+            maybe_line_comment = false;
+          } else {
+            maybe_line_statement = false;
+          }
+        }
+
+        if (maybe_line_statement) {
+          state = State::LineStatementStart;
+        } else if (maybe_line_comment) {
+          state = State::LineCommentStart;
+        } else {
+          pos += 1; // wasn't actually an opening sequence
+          goto again;
+        }
       } else {
         pos += 1; // wasn't actually an opening sequence
         goto again;
@@ -377,8 +397,8 @@ public:
       extra_pos_incr = 0;
       return make_token(Token::Kind::ExpressionOpen);
     }
-    case State::LineStart: {
-      state = State::LineBody;
+    case State::LineStatementStart: {
+      state = State::LineStatementBody;
       pos += config.line_statement.size();
       return make_token(Token::Kind::LineStatementOpen);
     }
@@ -387,6 +407,11 @@ public:
       pos += config.statement_open.size() + extra_pos_incr;
       extra_pos_incr = 0;
       return make_token(Token::Kind::StatementOpen);
+    }
+    case State::LineCommentStart: {
+      state = State::LineCommentBody;
+      pos += config.line_comment.size();
+      return make_token(Token::Kind::LineCommentOpen);
     }
     case State::CommentStart: {
       state = State::CommentBody;
@@ -399,13 +424,24 @@ public:
       return scan_body(config.expression_close,
                        Token::Kind::ExpressionClose,
                        force_strip + config.expression_close);
-    case State::LineBody:
-      return scan_body("\n", Token::Kind::LineStatementClose);
+    case State::LineStatementBody:
+      return scan_body("\n", Token::Kind::LineClose);
     case State::StatementBody:
       return scan_body(config.statement_close,
                        Token::Kind::StatementClose,
                        force_strip + config.statement_close,
                        config.trim_blocks);
+    case State::LineCommentBody: {
+      const size_t end = m_in.substr(pos).find('\n');
+      if (end == std::string_view::npos) {
+          pos = m_in.size();
+          return make_token(Token::Kind::Eof);
+      }
+
+      state = State::Text;
+      pos += end + 1;
+      return make_token(Token::Kind::LineClose);
+    }
     case State::CommentBody: {
       // fast-scan to comment close
       const size_t end = m_in.substr(pos).find(config.comment_close);

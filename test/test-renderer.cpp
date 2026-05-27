@@ -303,10 +303,12 @@ TEST_CASE("other syntax") {
   SUBCASE("multiple changes") {
     inja::Environment env;
     env.set_line_statement("$$");
+    env.set_line_comment("$");
     env.set_expression("<%", "%>");
 
     std::string string_template = R""""(Hello <%name%>
 $$ if name == "Peter"
+$ this is a comment!
     You really are <%name%>
 $$ endif
 )"""";

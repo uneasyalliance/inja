@@ -74,6 +74,12 @@ public:
     lexer_config.update_open_chars();
   }
 
+  /// Sets the opener for template line comments
+  void set_line_comment(const std::string& open) {
+    lexer_config.line_comment = open;
+    lexer_config.update_open_chars();
+  }
+
   /// Sets whether to remove the first newline after a block
   void set_trim_blocks(bool trim_blocks) {
     lexer_config.trim_blocks = trim_blocks;
