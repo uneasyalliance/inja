@@ -237,6 +237,21 @@ class Lexer {
     return Token(kind, string_view::slice(m_in, tok_start, pos));
   }
 
+  int count_whitespace_starting_line(size_t i) const {
+    int n_spaces = 0;
+    for (; i >= 0; --i) {
+      char c = m_in[i];
+      if (c == '\n') {
+        return n_spaces;
+      }
+      if (c != ' ' && c != '\t') {
+        return -1;
+      }
+      ++n_spaces;
+    }
+    return n_spaces;
+  }
+
   void skip_whitespaces_and_newlines() {
     if (pos < m_in.size()) {
       while (pos < m_in.size() && (m_in[pos] == ' ' || m_in[pos] == '\t' || m_in[pos] == '\n' || m_in[pos] == '\r')) {
@@ -338,7 +353,7 @@ public:
         state = State::StatementStart;
       } else if (inja::string_view::starts_with(open_str, config.comment_open)) {
         state = State::CommentStart;
-      } else if (pos == 0 || m_in[pos - 1] == '\n') {
+      } else {
         bool maybe_line_statement = !config.line_statement.empty()
           && inja::string_view::starts_with(open_str, config.line_statement);
         bool maybe_line_comment = !config.line_comment.empty()
@@ -350,18 +365,25 @@ public:
             maybe_line_statement = false;
           }
         }
+        int n_spaces = 0;
+        if (pos > 0 && (maybe_line_statement || maybe_line_comment)) {
+          n_spaces = count_whitespace_starting_line(pos - 1);
+          if (n_spaces < 0) {
+            maybe_line_statement = false;
+            maybe_line_comment = false;
+          }
+        }
 
         if (maybe_line_statement) {
           state = State::LineStatementStart;
+          pos -= n_spaces;
         } else if (maybe_line_comment) {
           state = State::LineCommentStart;
+          pos -= n_spaces;
         } else {
           pos += 1; // wasn't actually an opening sequence
           goto again;
         }
-      } else {
-        pos += 1; // wasn't actually an opening sequence
-        goto again;
       }
 
       if (state == State::ExpressionStart || state == State::StatementStart || state == State::CommentStart) {

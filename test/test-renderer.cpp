@@ -309,6 +309,7 @@ TEST_CASE("other syntax") {
     std::string string_template = R""""(Hello <%name%>
 $$ if name == "Peter"
 $ this is a comment!
+    $ another comment (testing line comment starting after begin of line)
     You really are <%name%>
 $$ endif
 )"""";
