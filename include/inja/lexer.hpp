@@ -420,7 +420,6 @@ public:
       return make_token(Token::Kind::CommentOpen);
     }
     case State::ExpressionBody:
-      // I don't think spec says to treat Expressions different from statments wrt trim_blocks
       return scan_body(config.expression_close,
                        Token::Kind::ExpressionClose,
                        force_strip + config.expression_close);
