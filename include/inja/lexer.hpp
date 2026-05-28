@@ -49,7 +49,7 @@ class Lexer {
 
   Token scan_body(std::string_view close,
                   Token::Kind closeKind,
-                  std::string_view close_trim = std::string_view(),
+                  std::string_view close_trim = std::string_view(), // TODO: remove, base on closeKind
                   bool trim = false) {
   again:
     // skip whitespace (except for \n as it might be a close)
@@ -62,7 +62,7 @@ class Lexer {
       goto again;
     }
 
-    // check for close
+    // check for close token with preceding '-'
     if (!close_trim.empty() && inja::string_view::starts_with(m_in.substr(tok_start), close_trim)) {
       state = State::Text;
       pos = tok_start + close_trim.size();
@@ -71,6 +71,7 @@ class Lexer {
       return tok;
     }
 
+    // check for bare close token
     if (inja::string_view::starts_with(m_in.substr(tok_start), close)) {
       state = State::Text;
       pos = tok_start + close.size();
@@ -89,7 +90,7 @@ class Lexer {
     }
 
     pos = tok_start + 1;
-    if (std::isalpha(ch)) {
+    if (std::isalpha(ch)) { // TODO allow leading underscore?
       minus_state = MinusState::Operator;
       return scan_id();
     }
@@ -479,7 +480,7 @@ public:
       pos += end + config.comment_close.size();
       Token tok = make_token(Token::Kind::CommentClose);
 
-      // possibly incorrect by the jinja spec
+      // possibly incorrect by the jinja spec. trim_blocks should only trim the newline
       if (must_rstrip || config.trim_blocks) {
         skip_whitespaces_and_first_newline();
       }

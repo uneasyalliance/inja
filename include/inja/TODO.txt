@@ -1,0 +1,10 @@
+trim_blocks should only strip newline, not trailing spaces (ending + still strips spaces)
+implement keep_trailing_newline in LexerConfig
+newline_sequence?
+implement "else if" / "elif" / both  configuration ("elif" is what jinja uses)
+allow colon at end of line statement?
+capital/small True/true False/false ?
+
+jinja doc update for trim_blocks/lstrip
++ not valid at end? docs say it is
+
