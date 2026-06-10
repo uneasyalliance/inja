@@ -80,6 +80,21 @@ public:
     lexer_config.update_open_chars();
   }
 
+  void set_inja_style_else_if() {
+    parser_config.allow_inja_style_else_if = true;
+    parser_config.allow_jinja_style_elif = false;
+  }
+
+  void set_jinja_style_elif() {
+    parser_config.allow_inja_style_else_if = false;
+    parser_config.allow_jinja_style_elif = true;
+  }
+
+  void set_both_elif_styles() {
+    parser_config.allow_inja_style_else_if = true;
+    parser_config.allow_jinja_style_elif = true;
+  }
+
   /// Sets whether to remove the first newline after a block
   void set_trim_blocks(bool trim_blocks) {
     lexer_config.trim_blocks = trim_blocks;

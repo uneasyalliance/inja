@@ -51,6 +51,8 @@ struct LexerConfig {
  */
 struct ParserConfig {
   bool search_included_templates_in_files {true};
+  bool allow_inja_style_else_if {true};
+  bool allow_jinja_style_elif {false};
 
   std::function<Template(const std::filesystem::path&, const std::string&)> include_callback;
 };
