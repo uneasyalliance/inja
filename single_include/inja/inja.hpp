@@ -337,6 +337,10 @@ inline std::pair<std::string_view, std::string_view> split(std::string_view view
 inline bool starts_with(std::string_view view, std::string_view prefix) {
   return (view.size() >= prefix.size() && view.compare(0, prefix.size(), prefix) == 0);
 }
+
+inline bool find_char_at(std::string_view view, size_t i, char c) {
+    return view.size() > i && view[i] == c;
+}
 } // namespace string_view
 
 inline SourceLocation get_source_location(std::string_view content, size_t pos) {
@@ -908,20 +912,14 @@ namespace inja {
  */
 struct LexerConfig {
   std::string statement_open {"{%"};
-  std::string statement_open_no_lstrip {"{%+"};
-  std::string statement_open_force_lstrip {"{%-"};
   std::string statement_close {"%}"};
-  std::string statement_close_force_rstrip {"-%}"};
-  std::string line_statement {"##"};
+  std::string line_statement {""};
   std::string expression_open {"{{"};
-  std::string expression_open_force_lstrip {"{{-"};
   std::string expression_close {"}}"};
-  std::string expression_close_force_rstrip {"-}}"};
   std::string comment_open {"{#"};
-  std::string comment_open_force_lstrip {"{#-"};
   std::string comment_close {"#}"};
-  std::string comment_close_force_rstrip {"-#}"};
-  std::string open_chars {"#{"};
+  std::string line_comment {""};
+  std::string open_chars {"{"};
 
   bool trim_blocks {false};
   bool lstrip_blocks {false};
@@ -934,23 +932,14 @@ struct LexerConfig {
     if (open_chars.find(statement_open[0]) == std::string::npos) {
       open_chars += statement_open[0];
     }
-    if (open_chars.find(statement_open_no_lstrip[0]) == std::string::npos) {
-      open_chars += statement_open_no_lstrip[0];
-    }
-    if (open_chars.find(statement_open_force_lstrip[0]) == std::string::npos) {
-      open_chars += statement_open_force_lstrip[0];
-    }
     if (open_chars.find(expression_open[0]) == std::string::npos) {
       open_chars += expression_open[0];
     }
-    if (open_chars.find(expression_open_force_lstrip[0]) == std::string::npos) {
-      open_chars += expression_open_force_lstrip[0];
+    if (open_chars.find(line_comment[0]) == std::string::npos) {
+        open_chars += line_comment[0];
     }
     if (open_chars.find(comment_open[0]) == std::string::npos) {
       open_chars += comment_open[0];
-    }
-    if (open_chars.find(comment_open_force_lstrip[0]) == std::string::npos) {
-      open_chars += comment_open_force_lstrip[0];
     }
   }
 };
@@ -960,6 +949,8 @@ struct LexerConfig {
  */
 struct ParserConfig {
   bool search_included_templates_in_files {true};
+  bool allow_inja_style_else_if {true};
+  bool allow_jinja_style_elif {false};
 
   std::function<Template(const std::filesystem::path&, const std::string&)> include_callback;
 };
@@ -1028,10 +1019,11 @@ struct Token {
     Text,
     ExpressionOpen,     // {{
     ExpressionClose,    // }}
-    LineStatementOpen,  // ##
-    LineStatementClose, // \n
+    LineStatementOpen,  // user defined
+    LineClose,          // \n
     StatementOpen,      // {%
     StatementClose,     // %}
+    LineCommentOpen,    // user defined
     CommentOpen,        // {#
     CommentClose,       // #}
     Id,                 // this, this.foo
@@ -1073,7 +1065,7 @@ struct Token {
     switch (kind) {
     case Kind::Text:
       return "<text>";
-    case Kind::LineStatementClose:
+    case Kind::LineClose:
       return "<eol>";
     case Kind::Eof:
       return "<eof>";
@@ -1099,16 +1091,14 @@ class Lexer {
   enum class State {
     Text,
     ExpressionStart,
-    ExpressionStartForceLstrip,
     ExpressionBody,
-    LineStart,
-    LineBody,
+    LineStatementStart,
+    LineStatementBody,
     StatementStart,
-    StatementStartNoLstrip, // NOLstrip for Expression and Comment also?
-    StatementStartForceLstrip,
     StatementBody,
+    LineCommentStart,
+    LineCommentBody,
     CommentStart,
-    CommentStartForceLstrip,
     CommentBody,
   };
 
@@ -1119,15 +1109,19 @@ class Lexer {
 
   const LexerConfig& config;
 
+  const char no_strip = '+';
+  const char force_strip = '-';
+
   State state;
   MinusState minus_state;
+  size_t extra_pos_incr;
   std::string_view m_in;
   size_t tok_start;
   size_t pos;
 
   Token scan_body(std::string_view close,
                   Token::Kind closeKind,
-                  std::string_view close_trim = std::string_view(),
+                  std::string_view close_trim = std::string_view(), // TODO: remove, base on closeKind
                   bool trim = false) {
   again:
     // skip whitespace (except for \n as it might be a close)
@@ -1140,7 +1134,7 @@ class Lexer {
       goto again;
     }
 
-    // check for close
+    // check for close token with preceding '-'
     if (!close_trim.empty() && inja::string_view::starts_with(m_in.substr(tok_start), close_trim)) {
       state = State::Text;
       pos = tok_start + close_trim.size();
@@ -1149,6 +1143,7 @@ class Lexer {
       return tok;
     }
 
+    // check for bare close token
     if (inja::string_view::starts_with(m_in.substr(tok_start), close)) {
       state = State::Text;
       pos = tok_start + close.size();
@@ -1167,7 +1162,7 @@ class Lexer {
     }
 
     pos = tok_start + 1;
-    if (std::isalpha(ch)) {
+    if (std::isalpha(ch)) { // TODO allow leading underscore?
       minus_state = MinusState::Operator;
       return scan_id();
     }
@@ -1315,6 +1310,21 @@ class Lexer {
     return Token(kind, string_view::slice(m_in, tok_start, pos));
   }
 
+  int count_whitespace_starting_line(size_t i) const {
+    int n_spaces = 0;
+    for (; i >= 0; --i) {
+      char c = m_in[i];
+      if (c == '\n') {
+        return n_spaces;
+      }
+      if (c != ' ' && c != '\t') {
+        return -1;
+      }
+      ++n_spaces;
+    }
+    return n_spaces;
+  }
+
   void skip_whitespaces_and_newlines() {
     if (pos < m_in.size()) {
       while (pos < m_in.size() && (m_in[pos] == ' ' || m_in[pos] == '\t' || m_in[pos] == '\n' || m_in[pos] == '\r')) {
@@ -1363,6 +1373,7 @@ public:
       config(config),
       state(State::Text),
       minus_state(MinusState::Number),
+      extra_pos_incr(0),
       tok_start(0),
       pos(0)
     {}
@@ -1377,6 +1388,7 @@ public:
     pos = 0;
     state = State::Text;
     minus_state = MinusState::Number;
+    extra_pos_incr = 0;
 
     // Consume byte order mark (BOM) for UTF-8
     if (inja::string_view::starts_with(m_in, "\xEF\xBB\xBF")) {
@@ -1407,41 +1419,66 @@ public:
       // try to match one of the opening sequences, and get the close
       const std::string_view open_str = m_in.substr(pos);
       bool must_lstrip = false;
+      //bool no_lstrip = false;
       if (inja::string_view::starts_with(open_str, config.expression_open)) {
-        if (inja::string_view::starts_with(open_str, config.expression_open_force_lstrip)) {
-          state = State::ExpressionStartForceLstrip;
-          must_lstrip = true;
-        } else {
-          state = State::ExpressionStart;
-        }
+        state = State::ExpressionStart;
       } else if (inja::string_view::starts_with(open_str, config.statement_open)) {
-        if (inja::string_view::starts_with(open_str, config.statement_open_no_lstrip)) {
-          state = State::StatementStartNoLstrip;
-        } else if (inja::string_view::starts_with(open_str, config.statement_open_force_lstrip)) {
-          state = State::StatementStartForceLstrip;
-          must_lstrip = true;
-        } else {
-          state = State::StatementStart;
-          must_lstrip = config.lstrip_blocks;
-        }
+        state = State::StatementStart;
       } else if (inja::string_view::starts_with(open_str, config.comment_open)) {
-        if (inja::string_view::starts_with(open_str, config.comment_open_force_lstrip)) {
-          state = State::CommentStartForceLstrip;
-          must_lstrip = true;
-        } else {
-          state = State::CommentStart;
-          must_lstrip = config.lstrip_blocks;
-        }
-      } else if ((pos == 0 || m_in[pos - 1] == '\n') && inja::string_view::starts_with(open_str, config.line_statement)) {
-        state = State::LineStart;
+        state = State::CommentStart;
       } else {
-        pos += 1; // wasn't actually an opening sequence
-        goto again;
+        bool maybe_line_statement = !config.line_statement.empty()
+          && inja::string_view::starts_with(open_str, config.line_statement);
+        bool maybe_line_comment = !config.line_comment.empty()
+          && inja::string_view::starts_with(open_str, config.line_comment);
+        if (maybe_line_statement && maybe_line_comment) { // disambiguate where e.g. one starts with "#" and another with "##"
+          if (config.line_statement.size() > config.line_comment.size()) {
+            maybe_line_comment = false;
+          } else {
+            maybe_line_statement = false;
+          }
+        }
+        int n_spaces = 0;
+        if (pos > 0 && (maybe_line_statement || maybe_line_comment)) {
+          n_spaces = count_whitespace_starting_line(pos - 1);
+          if (n_spaces < 0) {
+            maybe_line_statement = false;
+            maybe_line_comment = false;
+          }
+        }
+
+        if (maybe_line_statement) {
+          state = State::LineStatementStart;
+          pos -= n_spaces;
+        } else if (maybe_line_comment) {
+          state = State::LineCommentStart;
+          pos -= n_spaces;
+        } else {
+          pos += 1; // wasn't actually an opening sequence
+          goto again;
+        }
+      }
+
+      if (state == State::ExpressionStart || state == State::StatementStart || state == State::CommentStart) {
+        if (inja::string_view::find_char_at(open_str, 2, force_strip)) {
+          must_lstrip = true;
+          extra_pos_incr = 1;
+        }
+        else if (inja::string_view::find_char_at(open_str, 2, no_strip)) {
+          //no_lstrip = true;
+          extra_pos_incr = 1;
+        }
+        else {
+          if (state != State::ExpressionStart) {
+             must_lstrip = config.lstrip_blocks;
+          }
+          extra_pos_incr = 0;
+        }
       }
 
       std::string_view text = string_view::slice(m_in, tok_start, pos);
       if (must_lstrip) {
-        text = clear_final_line_if_whitespace(text);
+        text = clear_final_line_if_whitespace(text); // clear whitespace back to previous newline (don't clear if non-ws found)
       }
 
       if (text.empty()) {
@@ -1451,56 +1488,54 @@ public:
     }
     case State::ExpressionStart: {
       state = State::ExpressionBody;
-      pos += config.expression_open.size();
+      pos += config.expression_open.size() + extra_pos_incr;
+      extra_pos_incr = 0;
       return make_token(Token::Kind::ExpressionOpen);
     }
-    case State::ExpressionStartForceLstrip: {
-      state = State::ExpressionBody;
-      pos += config.expression_open_force_lstrip.size();
-      return make_token(Token::Kind::ExpressionOpen);
-    }
-    case State::LineStart: {
-      state = State::LineBody;
+    case State::LineStatementStart: {
+      state = State::LineStatementBody;
       pos += config.line_statement.size();
       return make_token(Token::Kind::LineStatementOpen);
     }
     case State::StatementStart: {
       state = State::StatementBody;
-      pos += config.statement_open.size();
+      pos += config.statement_open.size() + extra_pos_incr;
+      extra_pos_incr = 0;
       return make_token(Token::Kind::StatementOpen);
     }
-    case State::StatementStartNoLstrip: {
-      state = State::StatementBody;
-      pos += config.statement_open_no_lstrip.size();
-      return make_token(Token::Kind::StatementOpen);
-    }
-    case State::StatementStartForceLstrip: {
-      state = State::StatementBody;
-      pos += config.statement_open_force_lstrip.size();
-      return make_token(Token::Kind::StatementOpen);
+    case State::LineCommentStart: {
+      state = State::LineCommentBody;
+      pos += config.line_comment.size();
+      return make_token(Token::Kind::LineCommentOpen);
     }
     case State::CommentStart: {
       state = State::CommentBody;
-      pos += config.comment_open.size();
-      return make_token(Token::Kind::CommentOpen);
-    }
-    case State::CommentStartForceLstrip: {
-      state = State::CommentBody;
-      pos += config.comment_open_force_lstrip.size();
+      pos += config.comment_open.size() + extra_pos_incr;
+      extra_pos_incr = 0;
       return make_token(Token::Kind::CommentOpen);
     }
     case State::ExpressionBody:
-      // I don't think spec says to treat Expressions different from statments wrt trim_blocks
       return scan_body(config.expression_close,
                        Token::Kind::ExpressionClose,
-                       config.expression_close_force_rstrip);
-    case State::LineBody:
-      return scan_body("\n", Token::Kind::LineStatementClose);
+                       force_strip + config.expression_close);
+    case State::LineStatementBody:
+      return scan_body("\n", Token::Kind::LineClose);
     case State::StatementBody:
       return scan_body(config.statement_close,
                        Token::Kind::StatementClose,
-                       config.statement_close_force_rstrip,
+                       force_strip + config.statement_close,
                        config.trim_blocks);
+    case State::LineCommentBody: {
+      const size_t end = m_in.substr(pos).find('\n');
+      if (end == std::string_view::npos) {
+          pos = m_in.size();
+          return make_token(Token::Kind::Eof);
+      }
+
+      state = State::Text;
+      pos += end + 1;
+      return make_token(Token::Kind::LineClose);
+    }
     case State::CommentBody: {
       // fast-scan to comment close
       const size_t end = m_in.substr(pos).find(config.comment_close);
@@ -1510,14 +1545,14 @@ public:
       }
 
       // Check for trim pattern
-      const bool must_rstrip = inja::string_view::starts_with(m_in.substr(pos + end - 1), config.comment_close_force_rstrip);
+      const bool must_rstrip = inja::string_view::find_char_at(m_in, pos + end - 1, force_strip);
 
       // return the entire comment in the close token
       state = State::Text;
       pos += end + config.comment_close.size();
       Token tok = make_token(Token::Kind::CommentClose);
 
-      // possibly incorrect by the jinja spec
+      // possibly incorrect by the jinja spec. trim_blocks should only trim the newline
       if (must_rstrip || config.trim_blocks) {
         skip_whitespaces_and_first_newline();
       }
@@ -1970,7 +2005,9 @@ class Parser {
       current_block = &if_statement_data->false_statement;
 
       // Chained else if
-      if (tok.kind == Token::Kind::Id && tok.text == static_cast<decltype(tok.text)>("if")) {
+      if (config.allow_inja_style_else_if
+          && tok.kind == Token::Kind::Id
+          && tok.text == static_cast<decltype(tok.text)>("if")) {
         get_next_token();
 
         auto if_statement_node = std::make_shared<IfStatementNode>(true,
@@ -1984,6 +2021,27 @@ class Parser {
         if (!parse_expression(tmpl, closing)) {
           return false;
         }
+      }
+    } else if (config.allow_jinja_style_elif && tok.text == static_cast<decltype(tok.text)>("elif")) {
+      if (if_statement_stack.empty()) {
+        throw_parser_error("elif without matching if");
+      }
+      auto& if_statement_data = if_statement_stack.top();
+      get_next_token();
+
+      if_statement_data->has_false_statement = true;
+      current_block = &if_statement_data->false_statement;
+
+      auto if_statement_node = std::make_shared<IfStatementNode>(true,
+                                                                 current_block,
+                                                                 tok.text.data() - tmpl.content.c_str());
+      current_block->nodes.emplace_back(if_statement_node);
+      if_statement_stack.emplace(if_statement_node.get());
+      current_block = &if_statement_node->true_statement;
+      current_expression_list = &if_statement_node->condition;
+
+      if (!parse_expression(tmpl, closing)) {
+        return false;
       }
     } else if (tok.text == static_cast<decltype(tok.text)>("endif")) {
       if (if_statement_stack.empty()) {
@@ -2171,10 +2229,10 @@ class Parser {
       } break;
       case Token::Kind::LineStatementOpen: {
         get_next_token();
-        if (!parse_statement(tmpl, Token::Kind::LineStatementClose, path)) {
+        if (!parse_statement(tmpl, Token::Kind::LineClose, path)) {
           throw_parser_error("expected statement, got '" + tok.describe() + "'");
         }
-        if (tok.kind != Token::Kind::LineStatementClose && tok.kind != Token::Kind::Eof) {
+        if (tok.kind != Token::Kind::LineClose && tok.kind != Token::Kind::Eof) {
           throw_parser_error("expected line statement close, got '" + tok.describe() + "'");
         }
       } break;
@@ -2188,6 +2246,12 @@ class Parser {
         if (!parse_expression(tmpl, Token::Kind::ExpressionClose)) {
           throw_parser_error("expected expression close, got '" + tok.describe() + "'");
         }
+      } break;
+      case Token::Kind::LineCommentOpen: {
+          get_next_token();
+          if (tok.kind != Token::Kind::LineClose) {
+              throw_parser_error("expected line comment close, got '" + tok.describe() + "'");
+          }
       } break;
       case Token::Kind::CommentOpen: {
         get_next_token();
@@ -2969,10 +3033,7 @@ public:
   /// Sets the opener and closer for template statements
   void set_statement(const std::string& open, const std::string& close) {
     lexer_config.statement_open = open;
-    lexer_config.statement_open_no_lstrip = open + "+";
-    lexer_config.statement_open_force_lstrip = open + "-";
     lexer_config.statement_close = close;
-    lexer_config.statement_close_force_rstrip = "-" + close;
     lexer_config.update_open_chars();
   }
 
@@ -2985,19 +3046,36 @@ public:
   /// Sets the opener and closer for template expressions
   void set_expression(const std::string& open, const std::string& close) {
     lexer_config.expression_open = open;
-    lexer_config.expression_open_force_lstrip = open + "-";
     lexer_config.expression_close = close;
-    lexer_config.expression_close_force_rstrip = "-" + close;
     lexer_config.update_open_chars();
   }
 
   /// Sets the opener and closer for template comments
   void set_comment(const std::string& open, const std::string& close) {
     lexer_config.comment_open = open;
-    lexer_config.comment_open_force_lstrip = open + "-";
     lexer_config.comment_close = close;
-    lexer_config.comment_close_force_rstrip = "-" + close;
     lexer_config.update_open_chars();
+  }
+
+  /// Sets the opener for template line comments
+  void set_line_comment(const std::string& open) {
+    lexer_config.line_comment = open;
+    lexer_config.update_open_chars();
+  }
+
+  void set_inja_style_else_if() {
+    parser_config.allow_inja_style_else_if = true;
+    parser_config.allow_jinja_style_elif = false;
+  }
+
+  void set_jinja_style_elif() {
+    parser_config.allow_inja_style_else_if = false;
+    parser_config.allow_jinja_style_elif = true;
+  }
+
+  void set_both_elif_styles() {
+    parser_config.allow_inja_style_else_if = true;
+    parser_config.allow_jinja_style_elif = true;
   }
 
   /// Sets whether to remove the first newline after a block
